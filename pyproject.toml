@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "holomorphic5d"
+version = "0.1.0"
+description = "NumPy tools for a 5D holomorphic modular manifold"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["numpy"]
+
+[project.scripts]
+holomorphic5d = "holomorphic5d.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["holomorphic5d*"]
