@@ -29,6 +29,15 @@ python -m pip install -e .
 
 ## API
 
+### `holomorphic5d.HolomorphicFormulas`
+- `kk_mode_masses(radius_y: float, modes: np.ndarray) -> np.ndarray`.
+- `poincare_constant(radius_y: float) -> float`.
+- `poincare_lower_bound(radius_y: float) -> float`.
+- `electron_capacitance(charge_q: float, electron_mass: float, c: float) -> float`.
+- `spherical_capacitance(radius: float, epsilon0: float) -> float`.
+- `universe_capacitance(universe_radius: float, epsilon0: float) -> float`.
+- `bridge_capacitance(universe_radius: float, epsilon0: float, force_ratio: float) -> float`.
+
 ### `holomorphic5d.ModularSurface`
 - `project_to_fundamental_domain(tau: np.ndarray) -> np.ndarray`: project complex points to the standard fundamental domain.
 - `in_fundamental_domain(tau: np.ndarray) -> np.ndarray`: boolean mask for points in the fundamental domain.
