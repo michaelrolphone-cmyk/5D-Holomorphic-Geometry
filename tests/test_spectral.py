@@ -1,7 +1,9 @@
 import numpy as np
 
+from holomorphic5d.fundamental import FundamentalGeometry5D
 from holomorphic5d.spectral import (
     ModularHilbertSpace,
+    hilbert_space_from_geometry,
     hyperbolic_measure,
     mellin_zeta,
     modular_operator_h,
@@ -48,3 +50,12 @@ def test_zeta_regularized_determinant():
     eigenvalues = np.array([2.0, 3.0])
     det = zeta_regularized_determinant(eigenvalues)
     assert np.isclose(det, 6.0)
+
+
+def test_hilbert_space_from_geometry():
+    geometry = FundamentalGeometry5D(radius_y=1.0)
+    tau_grid = np.array([[2.2 + 0.3j, -1.5 + 1.8j]])
+    space = hilbert_space_from_geometry(geometry, tau_grid)
+    projected = geometry.project_tau(tau_grid)
+    assert np.allclose(space.x_grid, projected.real)
+    assert np.allclose(space.y_grid, projected.imag)

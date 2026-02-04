@@ -1,10 +1,12 @@
 """Numpy tools for a 5D holomorphic modular manifold."""
 
+from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D, ModularSurface
 from .mass_gap import (
     FiberGeometry,
     check_zero_mode,
     kk_mode_masses,
+    mass_gap_from_geometry,
     mass_gap_bound,
     mass_gap_mev,
     poincare_constant,
@@ -19,15 +21,18 @@ from .physics import (
     kahler_metric,
     kahler_potential,
     kk_mode_masses as physics_kk_mode_masses,
+    kk_mode_masses_from_geometry,
 )
 from .simulation import (
     apply_impedance_boundary,
     modular_transform,
     sample_modular_orbit,
+    simulate_diffusion_from_geometry,
     simulate_diffusion,
 )
 from .spectral import (
     ModularHilbertSpace,
+    hilbert_space_from_geometry,
     hyperbolic_measure,
     mellin_zeta,
     modular_operator_h,
@@ -53,8 +58,10 @@ from .unification import (
 __all__ = [
     "CapacitanceModel",
     "FiberGeometry",
+    "FundamentalGeometry5D",
     "HolomorphicManifold5D",
     "ModularHilbertSpace",
+    "hilbert_space_from_geometry",
     "ModularSurface",
     "PhysicalConstants",
     "apply_impedance_boundary",
@@ -72,6 +79,8 @@ __all__ = [
     "kahler_metric",
     "kahler_potential",
     "kk_mode_masses",
+    "kk_mode_masses_from_geometry",
+    "mass_gap_from_geometry",
     "mass_gap_bound",
     "mass_gap_mev",
     "mellin_zeta",
@@ -81,6 +90,7 @@ __all__ = [
     "poincare_constant",
     "poincare_lower_bound",
     "sample_modular_orbit",
+    "simulate_diffusion_from_geometry",
     "simulate_diffusion",
     "simulate_electron_binding",
     "spherical_capacitance",

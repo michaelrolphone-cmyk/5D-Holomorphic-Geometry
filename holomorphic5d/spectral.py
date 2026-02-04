@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .fundamental import FundamentalGeometry5D
 
 
 @dataclass(frozen=True)
@@ -20,6 +24,17 @@ class ModularHilbertSpace:
         """Discrete approximation of the modular-surface L2 inner product."""
         weight = self.measure()
         return np.sum(f * np.conjugate(g) * weight)
+
+
+def hilbert_space_from_geometry(
+    geometry: "FundamentalGeometry5D", tau_grid: np.ndarray
+) -> ModularHilbertSpace:
+    """Build a modular Hilbert space by projecting tau onto the fundamental domain."""
+    projected = geometry.project_tau(tau_grid)
+    return ModularHilbertSpace(
+        x_grid=np.real(projected),
+        y_grid=np.imag(projected),
+    )
 
 
 def hyperbolic_measure(y: np.ndarray) -> np.ndarray:

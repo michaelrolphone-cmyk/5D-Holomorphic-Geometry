@@ -36,6 +36,13 @@ python -m pip install -e .
 ### `holomorphic5d.HolomorphicManifold5D`
 - `grid() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]`: build the 5D meshgrid.
 - `laplacian5(field: np.ndarray) -> np.ndarray`: compute the 5D Laplacian with periodicity along the fiber.
+- `from_fundamental_geometry(geometry, grid_shape, spacing_base) -> HolomorphicManifold5D`: construct from the fundamental geometry.
+
+### `holomorphic5d.FundamentalGeometry5D`
+- `fiber_circumference() -> float`: return the S^1_y circumference.
+- `normalize_fiber_coordinate(y: np.ndarray) -> np.ndarray`: normalize fiber coordinates into `[0, 2πR)`.
+- `project_tau(tau: np.ndarray) -> np.ndarray`: project modular parameters onto the fundamental domain.
+- `algebraic_invariants(coupling_scale: float = 1.0) -> dict[str, float]`: basic invariants (radius, Poincaré bounds, mass gap).
 
 ### `holomorphic5d.mass_gap` helpers
 - `FiberGeometry`: container for fiber radius/circumference.
@@ -45,6 +52,7 @@ python -m pip install -e .
 - `zero_mode_removed(field: np.ndarray, axis: int = -1) -> np.ndarray`.
 - `check_zero_mode(field: np.ndarray, axis: int = -1, atol: float = 1e-8) -> bool`.
 - `mass_gap_bound(radius_y: float, coupling_scale: float = 1.0) -> float`.
+- `mass_gap_from_geometry(geometry, coupling_scale: float = 1.0) -> float`.
 - `mass_gap_mev(radius_y: float, hbar_c_mev_fm: float = 197.3269804) -> float`.
 
 ### `holomorphic5d.physics` helpers
@@ -53,11 +61,13 @@ python -m pip install -e .
 - `kahler_potential(z1, z2, tau, phi, kappa) -> np.ndarray`.
 - `kahler_metric(phi: float) -> np.ndarray`.
 - `kk_mode_masses(radius_y: float, modes: np.ndarray) -> np.ndarray`.
+- `kk_mode_masses_from_geometry(geometry, modes: np.ndarray) -> np.ndarray`.
 - `capacitance_level(z1, z2, epsilon0: float) -> np.ndarray`.
 - `hodge_normalization(universe_capacitance: float, proton_capacitance: float) -> float`.
 
 ### `holomorphic5d.spectral` helpers
 - `ModularHilbertSpace(x_grid, y_grid)`: discrete Hilbert-space utility with hyperbolic measure.
+- `hilbert_space_from_geometry(geometry, tau_grid) -> ModularHilbertSpace`.
 - `hyperbolic_measure(y: np.ndarray) -> np.ndarray`.
 - `modular_operator_h(field, y_grid, dy) -> np.ndarray`.
 - `theta_function(t: np.ndarray, n_terms: int = 50) -> np.ndarray`.
@@ -84,6 +94,7 @@ python -m pip install -e .
 - `modular_transform(tau: np.ndarray, matrix: np.ndarray) -> np.ndarray`.
 - `sample_modular_orbit(tau: complex, steps: int) -> np.ndarray`.
 - `simulate_diffusion(manifold, field, dt, steps, diffusivity=1.0, impedance=None) -> np.ndarray`.
+- `simulate_diffusion_from_geometry(geometry, grid_shape, spacing_base, field, dt, steps, diffusivity=1.0, impedance=None) -> np.ndarray`.
 
 ## CLI
 
@@ -111,6 +122,10 @@ python -m holomorphic5d.cli simulate-physics
 
 ```bash
 python -m holomorphic5d.cli mass-gap 2.818e-15 --mev
+```
+
+```bash
+python -m holomorphic5d.cli fundamental-geometry 2.0 --coupling 1.25 --tau-real 0.2 --tau-imag 1.1
 ```
 
 The diffusion command prints the mean of the final field state.

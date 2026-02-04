@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D
 
 
@@ -67,3 +68,27 @@ def simulate_diffusion(
             state = apply_impedance_boundary(state, impedance)
         history[step] = state
     return history
+
+
+def simulate_diffusion_from_geometry(
+    geometry: FundamentalGeometry5D,
+    grid_shape: tuple[int, int, int, int],
+    spacing_base: tuple[float, float, float],
+    field: np.ndarray,
+    dt: float,
+    steps: int,
+    diffusivity: float = 1.0,
+    impedance: ImpedanceBoundary | None = None,
+) -> np.ndarray:
+    """Simulate diffusion using a manifold derived from fundamental geometry."""
+    manifold = HolomorphicManifold5D.from_fundamental_geometry(
+        geometry, grid_shape=grid_shape, spacing_base=spacing_base
+    )
+    return simulate_diffusion(
+        manifold,
+        field,
+        dt=dt,
+        steps=steps,
+        diffusivity=diffusivity,
+        impedance=impedance,
+    )
