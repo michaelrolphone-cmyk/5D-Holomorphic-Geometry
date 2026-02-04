@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Temporal Field Viewer</title>
+    <title>Holomorphic Spectrum Viewer</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -31,6 +31,28 @@
         gap: 12px;
         align-items: center;
       }
+      .control {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 0.9rem;
+      }
+      .control input[type="range"] {
+        width: 220px;
+      }
+      .range-value {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.8;
+      }
+      .control-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .hidden {
+        display: none !important;
+      }
       .panel {
         padding: 12px 32px 24px;
       }
@@ -50,25 +72,84 @@
   </head>
   <body>
     <header>
-      <h1>Temporal Field Viewer</h1>
+      <h1>Holomorphic Spectrum Viewer</h1>
       <p>
-        Upload an image to visualize the temporal-field magnitude (brightness) and phase (hue).
-        The math mirrors <code>decode_pixels_to_manifold</code>: luminance gradients provide phase,
-        and the Laplacian magnitude provides the temporal field.
+        Switch between a temporal-field view derived from an uploaded image and a WebGL-rendered
+        5D holomorphic spectrum. The spectrum view evaluates a 5D Fourier transform of a
+        holomorphic Gaussian envelope, mapping its phase (hue) and amplitude (brightness).
       </p>
       <div class="controls">
-        <input id="image-upload" type="file" accept="image/*" />
-        <span class="status" id="status">Awaiting image upload.</span>
+        <label class="control">
+          <span>Mode</span>
+          <select id="mode-select">
+            <option value="spectrum" selected>5D Fourier spectrum</option>
+            <option value="temporal">Temporal field (image upload)</option>
+          </select>
+        </label>
+        <div class="control-group" id="image-controls">
+          <label class="control">
+            <span>Image upload</span>
+            <input id="image-upload" type="file" accept="image/*" />
+          </label>
+        </div>
+        <div class="control-group" id="spectrum-controls">
+          <label class="control">
+            <span>σ (envelope)</span>
+            <input id="sigma-input" type="range" min="0.25" max="1.2" step="0.05" value="0.6" />
+            <span class="range-value" id="sigma-value">0.60</span>
+          </label>
+          <label class="control">
+            <span>Coupling</span>
+            <input id="coupling-input" type="range" min="0.0" max="2.0" step="0.05" value="1.0" />
+            <span class="range-value" id="coupling-value">1.00</span>
+          </label>
+          <label class="control">
+            <span>Twist</span>
+            <input id="twist-input" type="range" min="0.0" max="1.0" step="0.05" value="0.35" />
+            <span class="range-value" id="twist-value">0.35</span>
+          </label>
+          <label class="control">
+            <span>k₃ slice</span>
+            <input id="k3-input" type="range" min="-1.5" max="1.5" step="0.05" value="0.4" />
+            <span class="range-value" id="k3-value">0.40</span>
+          </label>
+          <label class="control">
+            <span>k₄ slice</span>
+            <input id="k4-input" type="range" min="-1.5" max="1.5" step="0.05" value="-0.35" />
+            <span class="range-value" id="k4-value">-0.35</span>
+          </label>
+          <label class="control">
+            <span>k₅ slice</span>
+            <input id="k5-input" type="range" min="-1.5" max="1.5" step="0.05" value="0.2" />
+            <span class="range-value" id="k5-value">0.20</span>
+          </label>
+        </div>
+        <span class="status" id="status">Rendering 5D Fourier spectrum.</span>
       </div>
     </header>
     <div class="panel">
       <canvas id="temporal-field-canvas" width="640" height="480"></canvas>
     </div>
     <script>
+      const modeSelect = document.getElementById("mode-select");
       const upload = document.getElementById("image-upload");
+      const imageControls = document.getElementById("image-controls");
+      const spectrumControls = document.getElementById("spectrum-controls");
       const status = document.getElementById("status");
       const canvas = document.getElementById("temporal-field-canvas");
       const gl = canvas.getContext("webgl");
+      const sigmaInput = document.getElementById("sigma-input");
+      const couplingInput = document.getElementById("coupling-input");
+      const twistInput = document.getElementById("twist-input");
+      const k3Input = document.getElementById("k3-input");
+      const k4Input = document.getElementById("k4-input");
+      const k5Input = document.getElementById("k5-input");
+      const sigmaValue = document.getElementById("sigma-value");
+      const couplingValue = document.getElementById("coupling-value");
+      const twistValue = document.getElementById("twist-value");
+      const k3Value = document.getElementById("k3-value");
+      const k4Value = document.getElementById("k4-value");
+      const k5Value = document.getElementById("k5-value");
 
       if (!gl) {
         status.textContent = "WebGL unavailable in this browser.";
@@ -177,7 +258,7 @@
         return [r, g, b];
       }
 
-      function computeFields(imageData) {
+      function computeTemporalFields(imageData) {
         const width = imageData.width;
         const height = imageData.height;
         const data = imageData.data;
@@ -228,11 +309,79 @@
           temporal[i] = (temporal[i] - minTemporal) / range;
         }
 
-        return { width, height, phase, temporal, minTemporal, maxTemporal };
+        return {
+          width,
+          height,
+          phase,
+          magnitude: temporal,
+          minMagnitude: minTemporal,
+          maxMagnitude: maxTemporal,
+          label: "Temporal-field range",
+        };
+      }
+
+      function computeSpectrumFields(width, height, params) {
+        const total = width * height;
+        const phase = new Float32Array(total);
+        const magnitude = new Float32Array(total);
+        const twoPi = Math.PI * 2;
+        const extent = 2.25;
+        let minMagnitude = Number.POSITIVE_INFINITY;
+        let maxMagnitude = Number.NEGATIVE_INFINITY;
+
+        for (let y = 0; y < height; y++) {
+          const v = (y / (height - 1)) * 2 - 1;
+          for (let x = 0; x < width; x++) {
+            const u = (x / (width - 1)) * 2 - 1;
+            const k0 = u * extent;
+            const k1 = v * extent;
+            const k2 = params.k3;
+            const k3 = params.k4;
+            const k4 = params.k5;
+            const shifted0 = k0;
+            const shifted1 = k1;
+            const shifted2 = k2;
+            const shifted3 = k3;
+            const shifted4 = k4;
+            const normSq =
+              shifted0 * shifted0 +
+              shifted1 * shifted1 +
+              shifted2 * shifted2 +
+              shifted3 * shifted3 +
+              shifted4 * shifted4;
+            const envelope = Math.exp(
+              -2 * Math.PI * Math.PI * params.sigma * params.sigma * normSq
+            );
+            const phaseAngle =
+              twoPi *
+              (params.coupling * (shifted0 * shifted1 - shifted2 * shifted3) +
+                params.twist * shifted4);
+            const idx = y * width + x;
+            phase[idx] = ((phaseAngle % twoPi) + twoPi) % twoPi;
+            magnitude[idx] = envelope;
+            minMagnitude = Math.min(minMagnitude, envelope);
+            maxMagnitude = Math.max(maxMagnitude, envelope);
+          }
+        }
+
+        const range = Math.max(maxMagnitude - minMagnitude, 1e-8);
+        for (let i = 0; i < total; i++) {
+          magnitude[i] = (magnitude[i] - minMagnitude) / range;
+        }
+
+        return {
+          width,
+          height,
+          phase,
+          magnitude,
+          minMagnitude,
+          maxMagnitude,
+          label: "Spectrum amplitude range",
+        };
       }
 
       function renderFields(fields) {
-        const { width, height, phase, temporal, minTemporal, maxTemporal } = fields;
+        const { width, height, phase, magnitude, minMagnitude, maxMagnitude, label } = fields;
         canvas.width = width;
         canvas.height = height;
         if (!gl) {
@@ -243,7 +392,7 @@
         const twoPi = Math.PI * 2;
         for (let i = 0; i < width * height; i++) {
           const hue = phase[i] / twoPi;
-          const value = temporal[i];
+          const value = magnitude[i];
           const [r, g, b] = hsvToRgb(hue, 1, value);
           const base = i * 4;
           pixels[base] = Math.round(r * 255);
@@ -264,7 +413,33 @@
           pixels
         );
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        status.textContent = `Rendered ${width}×${height} | temporal range [${minTemporal.toFixed(4)}, ${maxTemporal.toFixed(4)}]`;
+        status.textContent = `Rendered ${width}×${height} | ${label} [${minMagnitude.toFixed(
+          4
+        )}, ${maxMagnitude.toFixed(4)}]`;
+      }
+
+      function syncSlider(input, output) {
+        output.textContent = Number.parseFloat(input.value).toFixed(2);
+      }
+
+      function spectrumParams() {
+        return {
+          sigma: Number.parseFloat(sigmaInput.value),
+          coupling: Number.parseFloat(couplingInput.value),
+          twist: Number.parseFloat(twistInput.value),
+          k3: Number.parseFloat(k3Input.value),
+          k4: Number.parseFloat(k4Input.value),
+          k5: Number.parseFloat(k5Input.value),
+        };
+      }
+
+      function renderSpectrum() {
+        if (!gl) {
+          return;
+        }
+        const size = 512;
+        const fields = computeSpectrumFields(size, size, spectrumParams());
+        renderFields(fields);
       }
 
       upload.addEventListener("change", (event) => {
@@ -282,7 +457,7 @@
             const ctx = tempCanvas.getContext("2d");
             ctx.drawImage(img, 0, 0);
             const imageData = ctx.getImageData(0, 0, img.width, img.height);
-            const fields = computeFields(imageData);
+            const fields = computeTemporalFields(imageData);
             renderFields(fields);
           };
           img.src = reader.result;
@@ -290,6 +465,45 @@
         reader.readAsDataURL(file);
         status.textContent = "Processing image...";
       });
+
+      function setMode(mode) {
+        if (!gl) {
+          status.textContent = "WebGL unavailable in this browser.";
+          return;
+        }
+        const isSpectrum = mode === "spectrum";
+        imageControls.classList.toggle("hidden", isSpectrum);
+        spectrumControls.classList.toggle("hidden", !isSpectrum);
+        if (isSpectrum) {
+          status.textContent = "Rendering 5D Fourier spectrum.";
+          renderSpectrum();
+        } else {
+          status.textContent = "Awaiting image upload.";
+        }
+      }
+
+      [
+        [sigmaInput, sigmaValue],
+        [couplingInput, couplingValue],
+        [twistInput, twistValue],
+        [k3Input, k3Value],
+        [k4Input, k4Value],
+        [k5Input, k5Value],
+      ].forEach(([input, output]) => {
+        syncSlider(input, output);
+        input.addEventListener("input", () => {
+          syncSlider(input, output);
+          if (modeSelect.value === "spectrum") {
+            renderSpectrum();
+          }
+        });
+      });
+
+      modeSelect.addEventListener("change", () => {
+        setMode(modeSelect.value);
+      });
+
+      setMode(modeSelect.value);
     </script>
   </body>
 </html>

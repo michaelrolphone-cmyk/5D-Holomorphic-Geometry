@@ -4,6 +4,7 @@ from holomorphic5d.fundamental import FundamentalGeometry5D
 from holomorphic5d.spectral import (
     ModularHilbertSpace,
     hilbert_space_from_geometry,
+    holomorphic_spectrum_fourier,
     hyperbolic_measure,
     mellin_zeta,
     modular_operator_h,
@@ -59,3 +60,21 @@ def test_hilbert_space_from_geometry():
     projected = geometry.project_tau(tau_grid)
     assert np.allclose(space.x_grid, projected.real)
     assert np.allclose(space.y_grid, projected.imag)
+
+
+def test_holomorphic_spectrum_fourier_origin():
+    value = holomorphic_spectrum_fourier(np.zeros(5))
+    assert np.isclose(value.real, 1.0)
+    assert np.isclose(value.imag, 0.0)
+
+
+def test_holomorphic_spectrum_fourier_decay():
+    origin = holomorphic_spectrum_fourier(np.zeros(5))
+    shifted = holomorphic_spectrum_fourier(np.ones(5))
+    assert np.abs(shifted) < np.abs(origin)
+
+
+def test_holomorphic_spectrum_fourier_vectorized_shape():
+    k_coords = np.array([[0.0, 0.0, 0.0, 0.0, 0.0], [0.5, -0.5, 0.2, -0.2, 0.1]])
+    values = holomorphic_spectrum_fourier(k_coords, sigma=0.4, coupling=0.8, twist=0.2)
+    assert values.shape == (2,)

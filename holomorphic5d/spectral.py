@@ -47,7 +47,7 @@ def modular_operator_h(field: np.ndarray, y_grid: np.ndarray, dy: float) -> np.n
     """Compute H = -i y d/dy using central differences along y-axis."""
     field = np.asarray(field, dtype=np.complex128)
     y_grid = np.asarray(y_grid, dtype=float)
-    d_field = (np.roll(field, -1, axis=-1) - np.roll(field, 1, axis=-1)) / (2.0 * dy)
+    d_field = np.gradient(field, dy, axis=-1, edge_order=2)
     return -1.0j * y_grid * d_field
 
 
@@ -71,7 +71,7 @@ def mellin_zeta(s: complex, t: np.ndarray, n_terms: int = 50) -> complex:
     t = np.asarray(t, dtype=float)
     theta = theta_function(t, n_terms=n_terms)
     integrand = (theta - 1.0) * t ** (s / 2.0 - 1.0) / 2.0
-    return np.trapz(integrand, t)
+    return np.trapezoid(integrand, t)
 
 
 def zeta_regularized_determinant(eigenvalues: np.ndarray) -> complex:
@@ -81,3 +81,36 @@ def zeta_regularized_determinant(eigenvalues: np.ndarray) -> complex:
     if eigenvalues.size == 0:
         return 1.0
     return np.exp(np.sum(np.log(eigenvalues)))
+
+
+def holomorphic_spectrum_fourier(
+    k_coords: np.ndarray,
+    sigma: float = 0.6,
+    center: np.ndarray | None = None,
+    coupling: float = 1.0,
+    twist: float = 0.35,
+) -> np.ndarray:
+    """Evaluate a 5D holomorphic spectrum via an analytic Fourier transform.
+
+    Args:
+        k_coords: Array of frequency-domain coordinates with trailing dimension size 5.
+        sigma: Gaussian width controlling the Fourier envelope.
+        center: Optional 5D center shift for the spectrum.
+        coupling: Phase coupling between the first four axes.
+        twist: Phase twist applied along the fifth axis.
+    """
+    k_coords = np.asarray(k_coords, dtype=float)
+    if k_coords.shape[-1] != 5:
+        raise ValueError("k_coords must have shape (..., 5)")
+    center = np.zeros(5, dtype=float) if center is None else np.asarray(center, dtype=float)
+    if center.shape != (5,):
+        raise ValueError("center must have shape (5,)")
+
+    shifted = k_coords - center
+    norm_sq = np.sum(shifted**2, axis=-1)
+    envelope = np.exp(-2.0 * (np.pi**2) * (sigma**2) * norm_sq)
+    phase = 2.0 * np.pi * (
+        coupling * (shifted[..., 0] * shifted[..., 1] - shifted[..., 2] * shifted[..., 3])
+        + twist * shifted[..., 4]
+    )
+    return envelope * np.exp(1.0j * phase)

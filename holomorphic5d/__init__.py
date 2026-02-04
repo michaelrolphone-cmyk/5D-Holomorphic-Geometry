@@ -35,6 +35,7 @@ from .simulation import (
 from .spectral import (
     ModularHilbertSpace,
     hilbert_space_from_geometry,
+    holomorphic_spectrum_fourier,
     hyperbolic_measure,
     mellin_zeta,
     modular_operator_h,
@@ -79,6 +80,7 @@ __all__ = [
     "harmonic_frequency",
     "hawking_temperature",
     "hodge_normalization",
+    "holomorphic_spectrum_fourier",
     "hyperbolic_measure",
     "kahler_metric",
     "kahler_potential",
