@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .fundamental import FundamentalGeometry5D
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,13 @@ def check_zero_mode(field: np.ndarray, axis: int = -1, atol: float = 1e-8) -> bo
 def mass_gap_bound(radius_y: float, coupling_scale: float = 1.0) -> float:
     """Compute Delta >= sqrt(coupling_scale)/R_y (coupling_scale defaults to 1)."""
     return np.sqrt(coupling_scale) / radius_y
+
+
+def mass_gap_from_geometry(
+    geometry: FundamentalGeometry5D, coupling_scale: float = 1.0
+) -> float:
+    """Compute the mass gap using the fundamental geometry."""
+    return mass_gap_bound(geometry.radius_y, coupling_scale=coupling_scale)
 
 
 def mass_gap_mev(radius_y: float, hbar_c_mev_fm: float = 197.3269804) -> float:

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .fundamental import FundamentalGeometry5D
 
 
 @dataclass(frozen=True)
@@ -76,6 +80,13 @@ def kk_mode_masses(radius_y: float, modes: np.ndarray) -> np.ndarray:
     """Compute Kaluza-Klein masses m_n = n / R_y."""
     modes = np.asarray(modes, dtype=float)
     return np.abs(modes) / radius_y
+
+
+def kk_mode_masses_from_geometry(
+    geometry: FundamentalGeometry5D, modes: np.ndarray
+) -> np.ndarray:
+    """Compute Kaluza-Klein masses using the fundamental geometry."""
+    return kk_mode_masses(geometry.radius_y, modes)
 
 
 def capacitance_level(z1: np.ndarray, z2: np.ndarray, epsilon0: float) -> np.ndarray:

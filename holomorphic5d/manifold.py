@@ -40,6 +40,24 @@ class HolomorphicManifold5D:
     radius_y: float
     modular_surface: ModularSurface = ModularSurface()
 
+    @classmethod
+    def from_fundamental_geometry(
+        cls,
+        geometry: "FundamentalGeometry5D",
+        grid_shape: tuple[int, int, int, int],
+        spacing_base: tuple[float, float, float],
+    ) -> "HolomorphicManifold5D":
+        """Construct a manifold using the fundamental geometry for the fiber spacing."""
+        dx, dy, dz = spacing_base
+        _, _, _, ny_fiber = grid_shape
+        dy_fiber = geometry.fiber_circumference() / ny_fiber
+        return cls(
+            grid_shape=grid_shape,
+            spacing=(dx, dy, dz, dy_fiber),
+            radius_y=geometry.radius_y,
+            modular_surface=geometry.modular_surface,
+        )
+
     def grid(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Return a meshgrid for x1, x2, x3, and y coordinates."""
         nx, ny, nz, ny_fiber = self.grid_shape

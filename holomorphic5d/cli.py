@@ -5,8 +5,9 @@ import json
 
 import numpy as np
 
+from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D
-from .mass_gap import mass_gap_bound, mass_gap_mev
+from .mass_gap import mass_gap_from_geometry, mass_gap_mev
 from .simulation import ImpedanceBoundary, sample_modular_orbit, simulate_diffusion
 from .spectral import mellin_zeta, theta_function
 from .unification import PhysicalConstants, simulate_electron_binding
@@ -76,6 +77,15 @@ def build_parser() -> argparse.ArgumentParser:
     gap_parser.add_argument("--coupling", type=float, default=1.0)
     gap_parser.add_argument("--mev", action="store_true")
 
+    fundamental_parser = subparsers.add_parser(
+        "fundamental-geometry",
+        help="Report fundamental geometry invariants",
+    )
+    fundamental_parser.add_argument("radius_y", type=float)
+    fundamental_parser.add_argument("--coupling", type=float, default=1.0)
+    fundamental_parser.add_argument("--tau-real", type=float, default=None)
+    fundamental_parser.add_argument("--tau-imag", type=float, default=None)
+
     return parser
 
 
@@ -91,10 +101,11 @@ def main() -> None:
         return
 
     if args.command == "simulate-diffusion":
-        manifold = HolomorphicManifold5D(
+        geometry = FundamentalGeometry5D(radius_y=args.radius_y)
+        manifold = HolomorphicManifold5D.from_fundamental_geometry(
+            geometry,
             grid_shape=(args.nx, args.ny, args.nz, args.ny_fiber),
-            spacing=(1.0, 1.0, 1.0, 2 * np.pi * args.radius_y / args.ny_fiber),
-            radius_y=args.radius_y,
+            spacing_base=(1.0, 1.0, 1.0),
         )
         field = np.zeros((args.nx, args.ny, args.nz, args.ny_fiber), dtype=float)
         field[args.nx // 2, args.ny // 2, args.nz // 2, :] = 1.0
@@ -146,7 +157,22 @@ def main() -> None:
         if args.mev:
             print(float(mass_gap_mev(args.radius_y)))
             return
-        print(float(mass_gap_bound(args.radius_y, coupling_scale=args.coupling)))
+        geometry = FundamentalGeometry5D(radius_y=args.radius_y)
+        print(float(mass_gap_from_geometry(geometry, coupling_scale=args.coupling)))
+        return
+
+    if args.command == "fundamental-geometry":
+        if (args.tau_real is None) ^ (args.tau_imag is None):
+            raise SystemExit("Provide both --tau-real and --tau-imag or neither.")
+        geometry = FundamentalGeometry5D(radius_y=args.radius_y)
+        payload = geometry.algebraic_invariants(coupling_scale=args.coupling)
+        if args.tau_real is not None:
+            projected = geometry.project_tau(args.tau_real + 1j * args.tau_imag)
+            payload["projected_tau"] = {
+                "real": float(np.real(projected)),
+                "imag": float(np.imag(projected)),
+            }
+        print(json.dumps(payload, indent=2, sort_keys=True))
         return
 
 
