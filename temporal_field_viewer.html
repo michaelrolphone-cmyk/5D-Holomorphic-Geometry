@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Temporal Field Viewer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background: #0c0c0f;
+        color: #f3f3f3;
+      }
+      header {
+        padding: 24px 32px 12px;
+      }
+      h1 {
+        margin: 0 0 8px 0;
+        font-size: 1.6rem;
+      }
+      p {
+        margin: 0 0 16px 0;
+        max-width: 70ch;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .panel {
+        padding: 12px 32px 24px;
+      }
+      canvas {
+        width: 100%;
+        max-width: 960px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: #101018;
+        display: block;
+      }
+      .status {
+        font-size: 0.9rem;
+        opacity: 0.8;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Temporal Field Viewer</h1>
+      <p>
+        Upload an image to visualize the temporal-field magnitude (brightness) and phase (hue).
+        The math mirrors <code>decode_pixels_to_manifold</code>: luminance gradients provide phase,
+        and the Laplacian magnitude provides the temporal field.
+      </p>
+      <div class="controls">
+        <input id="image-upload" type="file" accept="image/*" />
+        <span class="status" id="status">Awaiting image upload.</span>
+      </div>
+    </header>
+    <div class="panel">
+      <canvas id="temporal-field-canvas" width="640" height="480"></canvas>
+    </div>
+    <script>
+      const upload = document.getElementById("image-upload");
+      const status = document.getElementById("status");
+      const canvas = document.getElementById("temporal-field-canvas");
+      const gl = canvas.getContext("webgl");
+
+      if (!gl) {
+        status.textContent = "WebGL unavailable in this browser.";
+      }
+
+      const vertexSource = `
+        attribute vec2 position;
+        attribute vec2 texCoord;
+        varying vec2 vTexCoord;
+        void main() {
+          vTexCoord = texCoord;
+          gl_Position = vec4(position, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSource = `
+        precision mediump float;
+        varying vec2 vTexCoord;
+        uniform sampler2D uTexture;
+        void main() {
+          gl_FragColor = texture2D(uTexture, vTexCoord);
+        }
+      `;
+
+      function compileShader(type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          const info = gl.getShaderInfoLog(shader);
+          gl.deleteShader(shader);
+          throw new Error(info);
+        }
+        return shader;
+      }
+
+      function createProgram() {
+        const program = gl.createProgram();
+        const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
+        const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentSource);
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          const info = gl.getProgramInfoLog(program);
+          gl.deleteProgram(program);
+          throw new Error(info);
+        }
+        return program;
+      }
+
+      const program = gl ? createProgram() : null;
+      if (gl) {
+        gl.useProgram(program);
+      }
+
+      const quadVertices = new Float32Array([
+        -1, -1, 0, 0,
+         1, -1, 1, 0,
+        -1,  1, 0, 1,
+         1,  1, 1, 1,
+      ]);
+
+      const buffer = gl ? gl.createBuffer() : null;
+      if (gl) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, quadVertices, gl.STATIC_DRAW);
+        const positionLoc = gl.getAttribLocation(program, "position");
+        const texCoordLoc = gl.getAttribLocation(program, "texCoord");
+        gl.enableVertexAttribArray(positionLoc);
+        gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
+        gl.enableVertexAttribArray(texCoordLoc);
+        gl.vertexAttribPointer(texCoordLoc, 2, gl.FLOAT, false, 16, 8);
+      }
+
+      const texture = gl ? gl.createTexture() : null;
+      if (gl) {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
+
+      function hsvToRgb(h, s, v) {
+        const i = Math.floor(h * 6);
+        const f = h * 6 - i;
+        const p = v * (1 - s);
+        const q = v * (1 - f * s);
+        const t = v * (1 - (1 - f) * s);
+        const mod = i % 6;
+        let r = v;
+        let g = t;
+        let b = p;
+        if (mod === 1) {
+          r = q; g = v; b = p;
+        } else if (mod === 2) {
+          r = p; g = v; b = t;
+        } else if (mod === 3) {
+          r = p; g = q; b = v;
+        } else if (mod === 4) {
+          r = t; g = p; b = v;
+        } else if (mod === 5) {
+          r = v; g = p; b = q;
+        }
+        return [r, g, b];
+      }
+
+      function computeFields(imageData) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const data = imageData.data;
+        const total = width * height;
+        const luminance = new Float32Array(total);
+        const phase = new Float32Array(total);
+        const temporal = new Float32Array(total);
+
+        for (let i = 0; i < total; i++) {
+          const idx = i * 4;
+          const r = data[idx] / 255;
+          const g = data[idx + 1] / 255;
+          const b = data[idx + 2] / 255;
+          luminance[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        }
+
+        function index(x, y) {
+          const wrappedX = (x + width) % width;
+          const wrappedY = (y + height) % height;
+          return wrappedY * width + wrappedX;
+        }
+
+        let minTemporal = Number.POSITIVE_INFINITY;
+        let maxTemporal = Number.NEGATIVE_INFINITY;
+        const twoPi = Math.PI * 2;
+
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const centerIndex = index(x, y);
+            const left = luminance[index(x - 1, y)];
+            const right = luminance[index(x + 1, y)];
+            const up = luminance[index(x, y - 1)];
+            const down = luminance[index(x, y + 1)];
+            const gradX = 0.5 * (right - left);
+            const gradY = 0.5 * (down - up);
+            const phaseAngle = (Math.atan2(gradY, gradX) + twoPi) % twoPi;
+            phase[centerIndex] = phaseAngle;
+            const laplacian = left + right + up + down - 4 * luminance[centerIndex];
+            const magnitude = Math.abs(laplacian);
+            temporal[centerIndex] = magnitude;
+            minTemporal = Math.min(minTemporal, magnitude);
+            maxTemporal = Math.max(maxTemporal, magnitude);
+          }
+        }
+
+        const range = Math.max(maxTemporal - minTemporal, 1e-8);
+        for (let i = 0; i < total; i++) {
+          temporal[i] = (temporal[i] - minTemporal) / range;
+        }
+
+        return { width, height, phase, temporal, minTemporal, maxTemporal };
+      }
+
+      function renderFields(fields) {
+        const { width, height, phase, temporal, minTemporal, maxTemporal } = fields;
+        canvas.width = width;
+        canvas.height = height;
+        if (!gl) {
+          return;
+        }
+        gl.viewport(0, 0, width, height);
+        const pixels = new Uint8Array(width * height * 4);
+        const twoPi = Math.PI * 2;
+        for (let i = 0; i < width * height; i++) {
+          const hue = phase[i] / twoPi;
+          const value = temporal[i];
+          const [r, g, b] = hsvToRgb(hue, 1, value);
+          const base = i * 4;
+          pixels[base] = Math.round(r * 255);
+          pixels[base + 1] = Math.round(g * 255);
+          pixels[base + 2] = Math.round(b * 255);
+          pixels[base + 3] = 255;
+        }
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          width,
+          height,
+          0,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          pixels
+        );
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        status.textContent = `Rendered ${width}×${height} | temporal range [${minTemporal.toFixed(4)}, ${maxTemporal.toFixed(4)}]`;
+      }
+
+      upload.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            const ctx = tempCanvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+            const imageData = ctx.getImageData(0, 0, img.width, img.height);
+            const fields = computeFields(imageData);
+            renderFields(fields);
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+        status.textContent = "Processing image...";
+      });
+    </script>
+  </body>
+</html>

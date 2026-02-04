@@ -34,3 +34,4 @@ def test_decode_pixels_projects_tau_to_fundamental_domain() -> None:
 
     surface = ModularSurface()
     assert np.all(surface.in_fundamental_domain(embedding.tau))
+
