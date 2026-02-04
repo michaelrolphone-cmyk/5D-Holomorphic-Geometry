@@ -160,3 +160,8 @@ python -m holomorphic5d.cli decode-pixels image.npy embedding.npz --radius-y 1.5
 ```
 
 The diffusion command prints the mean of the final field state.
+
+## Standalone WebGL temporal-field viewer
+
+Open [`temporal_field_viewer.html`](temporal_field_viewer.html) in a browser to upload an image and render the temporal-field
+magnitude (brightness) and phase (hue) using the same luminance/gradient/Laplacian math as `decode_pixels_to_manifold`.
