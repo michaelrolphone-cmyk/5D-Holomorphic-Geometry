@@ -88,6 +88,7 @@ python -m pip install -e .
 - `mellin_zeta(s: complex, t: np.ndarray, n_terms: int = 50) -> complex`.
 - `zeta_regularized_determinant(eigenvalues: np.ndarray) -> complex`.
 - `holomorphic_spectrum_fourier(k_coords, sigma=0.6, center=None, coupling=1.0, twist=0.35) -> np.ndarray`.
+- `discrete_five_d_fourier(points, weights, k_coords) -> np.ndarray`.
 
 ### `holomorphic5d.unification` helpers
 - `PhysicalConstants`: container for the physical constants and scale parameters.
@@ -170,5 +171,6 @@ The diffusion command prints the mean of the final field state.
 ## Standalone WebGL temporal-field viewer
 
 Open [`temporal_field_viewer.html`](temporal_field_viewer.html) in a browser to switch between a 5D holomorphic Fourier spectrum
-render and the temporal-field viewer. The spectrum mode renders a 5D Fourier transform (phase as hue, amplitude as brightness),
-while the temporal-field mode mirrors the luminance/gradient/Laplacian math in `decode_pixels_to_manifold`.
+render and the temporal-field viewer. The spectrum mode renders a 5D Fourier transform of the uploaded image (phase as hue,
+amplitude as brightness), while the temporal-field mode mirrors the luminance/gradient/Laplacian math in
+`decode_pixels_to_manifold`.

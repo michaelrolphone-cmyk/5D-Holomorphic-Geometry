@@ -75,8 +75,8 @@
       <h1>Holomorphic Spectrum Viewer</h1>
       <p>
         Switch between a temporal-field view derived from an uploaded image and a WebGL-rendered
-        5D holomorphic spectrum. The spectrum view evaluates a 5D Fourier transform of a
-        holomorphic Gaussian envelope, mapping its phase (hue) and amplitude (brightness).
+        5D holomorphic spectrum. The spectrum view evaluates a 5D Fourier transform of the
+        uploaded image (phase as hue, amplitude as brightness).
       </p>
       <div class="controls">
         <label class="control">
@@ -94,19 +94,9 @@
         </div>
         <div class="control-group" id="spectrum-controls">
           <label class="control">
-            <span>σ (envelope)</span>
-            <input id="sigma-input" type="range" min="0.25" max="1.2" step="0.05" value="0.6" />
-            <span class="range-value" id="sigma-value">0.60</span>
-          </label>
-          <label class="control">
-            <span>Coupling</span>
-            <input id="coupling-input" type="range" min="0.0" max="2.0" step="0.05" value="1.0" />
-            <span class="range-value" id="coupling-value">1.00</span>
-          </label>
-          <label class="control">
-            <span>Twist</span>
-            <input id="twist-input" type="range" min="0.0" max="1.0" step="0.05" value="0.35" />
-            <span class="range-value" id="twist-value">0.35</span>
+            <span>k-range</span>
+            <input id="k-range-input" type="range" min="0.25" max="2.5" step="0.05" value="1.2" />
+            <span class="range-value" id="k-range-value">1.20</span>
           </label>
           <label class="control">
             <span>k₃ slice</span>
@@ -124,7 +114,7 @@
             <span class="range-value" id="k5-value">0.20</span>
           </label>
         </div>
-        <span class="status" id="status">Rendering 5D Fourier spectrum.</span>
+        <span class="status" id="status">Upload an image to render the 5D Fourier spectrum.</span>
       </div>
     </header>
     <div class="panel">
@@ -138,18 +128,16 @@
       const status = document.getElementById("status");
       const canvas = document.getElementById("temporal-field-canvas");
       const gl = canvas.getContext("webgl");
-      const sigmaInput = document.getElementById("sigma-input");
-      const couplingInput = document.getElementById("coupling-input");
-      const twistInput = document.getElementById("twist-input");
+      const kRangeInput = document.getElementById("k-range-input");
       const k3Input = document.getElementById("k3-input");
       const k4Input = document.getElementById("k4-input");
       const k5Input = document.getElementById("k5-input");
-      const sigmaValue = document.getElementById("sigma-value");
-      const couplingValue = document.getElementById("coupling-value");
-      const twistValue = document.getElementById("twist-value");
+      const kRangeValue = document.getElementById("k-range-value");
       const k3Value = document.getElementById("k3-value");
       const k4Value = document.getElementById("k4-value");
       const k5Value = document.getElementById("k5-value");
+      let embedding = null;
+      let lastImageData = null;
 
       if (!gl) {
         status.textContent = "WebGL unavailable in this browser.";
@@ -320,58 +308,179 @@
         };
       }
 
-      function computeSpectrumFields(width, height, params) {
+      function neighborSum(field, width, height) {
         const total = width * height;
-        const phase = new Float32Array(total);
-        const magnitude = new Float32Array(total);
-        const twoPi = Math.PI * 2;
-        const extent = 2.25;
-        let minMagnitude = Number.POSITIVE_INFINITY;
-        let maxMagnitude = Number.NEGATIVE_INFINITY;
-
+        const output = new Float32Array(total);
         for (let y = 0; y < height; y++) {
-          const v = (y / (height - 1)) * 2 - 1;
           for (let x = 0; x < width; x++) {
-            const u = (x / (width - 1)) * 2 - 1;
-            const k0 = u * extent;
-            const k1 = v * extent;
-            const k2 = params.k3;
-            const k3 = params.k4;
-            const k4 = params.k5;
-            const shifted0 = k0;
-            const shifted1 = k1;
-            const shifted2 = k2;
-            const shifted3 = k3;
-            const shifted4 = k4;
-            const normSq =
-              shifted0 * shifted0 +
-              shifted1 * shifted1 +
-              shifted2 * shifted2 +
-              shifted3 * shifted3 +
-              shifted4 * shifted4;
-            const envelope = Math.exp(
-              -2 * Math.PI * Math.PI * params.sigma * params.sigma * normSq
-            );
-            const phaseAngle =
-              twoPi *
-              (params.coupling * (shifted0 * shifted1 - shifted2 * shifted3) +
-                params.twist * shifted4);
-            const idx = y * width + x;
-            phase[idx] = ((phaseAngle % twoPi) + twoPi) % twoPi;
-            magnitude[idx] = envelope;
-            minMagnitude = Math.min(minMagnitude, envelope);
-            maxMagnitude = Math.max(maxMagnitude, envelope);
+            let sum = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                const wrappedX = (x + dx + width) % width;
+                const wrappedY = (y + dy + height) % height;
+                sum += field[wrappedY * width + wrappedX];
+              }
+            }
+            output[y * width + x] = sum;
           }
         }
+        return output;
+      }
 
-        const range = Math.max(maxMagnitude - minMagnitude, 1e-8);
+      function normalizeField(field) {
+        let minVal = Number.POSITIVE_INFINITY;
+        let maxVal = Number.NEGATIVE_INFINITY;
+        for (let i = 0; i < field.length; i++) {
+          minVal = Math.min(minVal, field[i]);
+          maxVal = Math.max(maxVal, field[i]);
+        }
+        const range = Math.max(maxVal - minVal, 1e-8);
+        const output = new Float32Array(field.length);
+        for (let i = 0; i < field.length; i++) {
+          output[i] = (field[i] - minVal) / range;
+        }
+        return output;
+      }
+
+      function computeEmbedding(imageData) {
+        const width = imageData.width;
+        const height = imageData.height;
+        const data = imageData.data;
+        const total = width * height;
+        const luminance = new Float32Array(total);
+        const r = new Float32Array(total);
+        const b = new Float32Array(total);
         for (let i = 0; i < total; i++) {
-          magnitude[i] = (magnitude[i] - minMagnitude) / range;
+          const idx = i * 4;
+          const red = data[idx] / 255;
+          const green = data[idx + 1] / 255;
+          const blue = data[idx + 2] / 255;
+          r[i] = red;
+          b[i] = blue;
+          luminance[i] = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+        }
+
+        const luminanceSq = new Float32Array(total);
+        for (let i = 0; i < total; i++) {
+          luminanceSq[i] = luminance[i] * luminance[i];
+        }
+
+        const mean = neighborSum(luminance, width, height);
+        const meanSq = neighborSum(luminanceSq, width, height);
+        const variance = new Float32Array(total);
+        for (let i = 0; i < total; i++) {
+          const localMean = mean[i] / 9;
+          const localMeanSq = meanSq[i] / 9;
+          variance[i] = Math.max(localMeanSq - localMean * localMean, 0);
+        }
+        const depthField = normalizeField(variance);
+
+        const spectralShift = new Float32Array(total);
+        for (let i = 0; i < total; i++) {
+          spectralShift[i] = (r[i] - b[i]) / (r[i] + b[i] + 1e-8);
+        }
+
+        const phaseField = new Float32Array(total);
+        const temporalField = new Float32Array(total);
+        const twoPi = Math.PI * 2;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const center = y * width + x;
+            const left = luminance[y * width + (x - 1 + width) % width];
+            const right = luminance[y * width + (x + 1) % width];
+            const up = luminance[((y - 1 + height) % height) * width + x];
+            const down = luminance[((y + 1) % height) * width + x];
+            const gradX = 0.5 * (right - left);
+            const gradY = 0.5 * (down - up);
+            const phaseAngle = (Math.atan2(gradY, gradX) + twoPi) % twoPi;
+            phaseField[center] = phaseAngle;
+            const laplacian = left + right + up + down - 4 * luminance[center];
+            temporalField[center] = Math.abs(laplacian);
+          }
+        }
+        const temporalNormalized = normalizeField(temporalField);
+
+        const points = new Float32Array(total * 5);
+        const radiusY = 1.0;
+        const depthScale = 1.0;
+        const phaseScale = 1.0;
+        const temporalScale = 1.0;
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            const base = idx * 5;
+            points[base] = y;
+            points[base + 1] = x;
+            points[base + 2] = depthScale * depthField[idx];
+            points[base + 3] = phaseScale * phaseField[idx] * radiusY;
+            points[base + 4] = temporalScale * temporalNormalized[idx];
+          }
         }
 
         return {
           width,
           height,
+          luminance,
+          depthField,
+          spectralShift,
+          phaseField,
+          temporalField: temporalNormalized,
+          points,
+        };
+      }
+
+      function computeSpectrumFieldsFromEmbedding(params) {
+        const size = 128;
+        const phase = new Float32Array(size * size);
+        const magnitude = new Float32Array(size * size);
+        const twoPi = Math.PI * 2;
+        let minMagnitude = Number.POSITIVE_INFINITY;
+        let maxMagnitude = Number.NEGATIVE_INFINITY;
+        const total = embedding.luminance.length;
+        const constPhase = new Float32Array(total);
+
+        for (let i = 0; i < total; i++) {
+          const base = i * 5;
+          const x3 = embedding.points[base + 2];
+          const y = embedding.points[base + 3];
+          const t = embedding.points[base + 4];
+          constPhase[i] = params.k3 * x3 + params.k4 * y + params.k5 * t;
+        }
+
+        for (let y = 0; y < size; y++) {
+          const v = (y / (size - 1)) * 2 - 1;
+          const k1 = v * params.kRange;
+          for (let x = 0; x < size; x++) {
+            const u = (x / (size - 1)) * 2 - 1;
+            const k0 = u * params.kRange;
+            let sumReal = 0;
+            let sumImag = 0;
+            for (let i = 0; i < total; i++) {
+              const base = i * 5;
+              const x1 = embedding.points[base];
+              const x2 = embedding.points[base + 1];
+              const phaseAngle = -twoPi * (k0 * x1 + k1 * x2 + constPhase[i]);
+              const amp = embedding.luminance[i];
+              sumReal += amp * Math.cos(phaseAngle);
+              sumImag += amp * Math.sin(phaseAngle);
+            }
+            const idx = y * size + x;
+            const mag = Math.hypot(sumReal, sumImag);
+            phase[idx] = (Math.atan2(sumImag, sumReal) + twoPi) % twoPi;
+            magnitude[idx] = mag;
+            minMagnitude = Math.min(minMagnitude, mag);
+            maxMagnitude = Math.max(maxMagnitude, mag);
+          }
+        }
+
+        const range = Math.max(maxMagnitude - minMagnitude, 1e-8);
+        for (let i = 0; i < magnitude.length; i++) {
+          magnitude[i] = (magnitude[i] - minMagnitude) / range;
+        }
+
+        return {
+          width: size,
+          height: size,
           phase,
           magnitude,
           minMagnitude,
@@ -424,9 +533,7 @@
 
       function spectrumParams() {
         return {
-          sigma: Number.parseFloat(sigmaInput.value),
-          coupling: Number.parseFloat(couplingInput.value),
-          twist: Number.parseFloat(twistInput.value),
+          kRange: Number.parseFloat(kRangeInput.value),
           k3: Number.parseFloat(k3Input.value),
           k4: Number.parseFloat(k4Input.value),
           k5: Number.parseFloat(k5Input.value),
@@ -437,8 +544,11 @@
         if (!gl) {
           return;
         }
-        const size = 512;
-        const fields = computeSpectrumFields(size, size, spectrumParams());
+        if (!embedding) {
+          status.textContent = "Upload an image to render the 5D Fourier spectrum.";
+          return;
+        }
+        const fields = computeSpectrumFieldsFromEmbedding(spectrumParams());
         renderFields(fields);
       }
 
@@ -452,13 +562,21 @@
           const img = new Image();
           img.onload = () => {
             const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = img.width;
-            tempCanvas.height = img.height;
+            const maxSize = 64;
+            const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+            tempCanvas.width = Math.max(1, Math.round(img.width * scale));
+            tempCanvas.height = Math.max(1, Math.round(img.height * scale));
             const ctx = tempCanvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, img.width, img.height);
-            const fields = computeTemporalFields(imageData);
-            renderFields(fields);
+            ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+            const downsampled = ctx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            embedding = computeEmbedding(downsampled);
+            lastImageData = downsampled;
+            if (modeSelect.value === "temporal") {
+              const fields = computeTemporalFields(downsampled);
+              renderFields(fields);
+            } else {
+              renderSpectrum();
+            }
           };
           img.src = reader.result;
         };
@@ -475,17 +593,19 @@
         imageControls.classList.toggle("hidden", isSpectrum);
         spectrumControls.classList.toggle("hidden", !isSpectrum);
         if (isSpectrum) {
-          status.textContent = "Rendering 5D Fourier spectrum.";
           renderSpectrum();
         } else {
-          status.textContent = "Awaiting image upload.";
+          if (!embedding || !lastImageData) {
+            status.textContent = "Awaiting image upload.";
+          } else {
+            const fields = computeTemporalFields(lastImageData);
+            renderFields(fields);
+          }
         }
       }
 
       [
-        [sigmaInput, sigmaValue],
-        [couplingInput, couplingValue],
-        [twistInput, twistValue],
+        [kRangeInput, kRangeValue],
         [k3Input, k3Value],
         [k4Input, k4Value],
         [k5Input, k5Value],

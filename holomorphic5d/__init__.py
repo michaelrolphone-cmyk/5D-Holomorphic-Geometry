@@ -34,6 +34,7 @@ from .simulation import (
 )
 from .spectral import (
     ModularHilbertSpace,
+    discrete_five_d_fourier,
     hilbert_space_from_geometry,
     holomorphic_spectrum_fourier,
     hyperbolic_measure,
@@ -75,6 +76,7 @@ __all__ = [
     "check_zero_mode",
     "coulomb_force",
     "dedekind_eta",
+    "discrete_five_d_fourier",
     "electron_capacitance",
     "gravitational_mass_from_force",
     "harmonic_frequency",

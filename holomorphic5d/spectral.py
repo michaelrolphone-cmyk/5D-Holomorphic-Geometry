@@ -114,3 +114,20 @@ def holomorphic_spectrum_fourier(
         + twist * shifted[..., 4]
     )
     return envelope * np.exp(1.0j * phase)
+
+
+def discrete_five_d_fourier(
+    points: np.ndarray, weights: np.ndarray, k_coords: np.ndarray
+) -> np.ndarray:
+    """Compute a discrete 5D Fourier transform over weighted points."""
+    points = np.asarray(points, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    k_coords = np.asarray(k_coords, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 5:
+        raise ValueError("points must have shape (N, 5)")
+    if weights.shape != (points.shape[0],):
+        raise ValueError("weights must have shape (N,)")
+    if k_coords.shape[-1] != 5:
+        raise ValueError("k_coords must have shape (..., 5)")
+    phase = -2.0j * np.pi * np.tensordot(k_coords, points, axes=([k_coords.ndim - 1], [1]))
+    return np.tensordot(np.exp(phase), weights, axes=([phase.ndim - 1], [0]))
