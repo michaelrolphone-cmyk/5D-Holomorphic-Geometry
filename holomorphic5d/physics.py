@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .formulas import HolomorphicFormulas
+
 if TYPE_CHECKING:
     from .fundamental import FundamentalGeometry5D
 
@@ -21,16 +23,24 @@ class CapacitanceModel:
     bridge_ratio: float = 2.27e39
 
     def proton_capacitance(self) -> float:
-        return 2.0 * np.pi * self.epsilon0 * self.proton_radius**2
+        return HolomorphicFormulas.spherical_capacitance(
+            self.proton_radius, self.epsilon0
+        )
 
     def universe_capacitance(self) -> float:
-        return 4.0 * np.pi * self.epsilon0 * self.universe_radius
+        return HolomorphicFormulas.universe_capacitance(
+            self.universe_radius, self.epsilon0
+        )
 
     def bridge_capacitance(self) -> float:
-        return self.universe_capacitance() / (4.0 * np.pi**2 * self.bridge_ratio)
+        return HolomorphicFormulas.bridge_capacitance(
+            self.universe_radius, self.epsilon0, self.bridge_ratio
+        )
 
     def electron_capacitance(self, electron_mass: float) -> float:
-        return self.charge_q**2 / (2.0 * electron_mass * self.speed_c**2)
+        return HolomorphicFormulas.electron_capacitance(
+            self.charge_q, electron_mass, self.speed_c
+        )
 
     def mode_capacitances(self, modes: np.ndarray, kappa: float = 0.0) -> np.ndarray:
         modes = np.asarray(modes, dtype=float)
@@ -78,8 +88,7 @@ def kahler_metric(phi: float) -> np.ndarray:
 
 def kk_mode_masses(radius_y: float, modes: np.ndarray) -> np.ndarray:
     """Compute Kaluza-Klein masses m_n = n / R_y."""
-    modes = np.asarray(modes, dtype=float)
-    return np.abs(modes) / radius_y
+    return HolomorphicFormulas.kk_mode_masses(radius_y, modes)
 
 
 def kk_mode_masses_from_geometry(

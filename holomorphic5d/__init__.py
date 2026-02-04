@@ -1,5 +1,6 @@
 """Numpy tools for a 5D holomorphic modular manifold."""
 
+from .formulas import HolomorphicFormulas
 from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D, ModularSurface
 from .mass_gap import (
@@ -59,6 +60,7 @@ __all__ = [
     "CapacitanceModel",
     "FiberGeometry",
     "FundamentalGeometry5D",
+    "HolomorphicFormulas",
     "HolomorphicManifold5D",
     "ModularHilbertSpace",
     "hilbert_space_from_geometry",

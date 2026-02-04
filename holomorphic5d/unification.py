@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .formulas import HolomorphicFormulas
+
 
 @dataclass(frozen=True)
 class PhysicalConstants:
@@ -23,19 +25,21 @@ class PhysicalConstants:
 
 
 def electron_capacitance(charge_q: float, electron_mass: float, c: float) -> float:
-    return charge_q**2 / (2.0 * electron_mass * c**2)
+    return HolomorphicFormulas.electron_capacitance(charge_q, electron_mass, c)
 
 
 def spherical_capacitance(radius: float, epsilon0: float) -> float:
-    return 2.0 * np.pi * epsilon0 * radius**2
+    return HolomorphicFormulas.spherical_capacitance(radius, epsilon0)
 
 
 def universe_capacitance(universe_radius: float, epsilon0: float) -> float:
-    return 4.0 * np.pi * epsilon0 * universe_radius
+    return HolomorphicFormulas.universe_capacitance(universe_radius, epsilon0)
 
 
 def bridge_capacitance(universe_radius: float, epsilon0: float, force_ratio: float) -> float:
-    return universe_capacitance(universe_radius, epsilon0) / (4.0 * np.pi**2 * force_ratio)
+    return HolomorphicFormulas.bridge_capacitance(
+        universe_radius, epsilon0, force_ratio
+    )
 
 
 def coulomb_force(charge_q: float, epsilon0: float, radius: float) -> float:

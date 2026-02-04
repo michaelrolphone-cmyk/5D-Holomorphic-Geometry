@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from .formulas import HolomorphicFormulas
+
 if TYPE_CHECKING:
     from .fundamental import FundamentalGeometry5D
 
@@ -22,20 +24,17 @@ class FiberGeometry:
 
 def kk_mode_masses(radius_y: float, modes: np.ndarray) -> np.ndarray:
     """Compute KK masses m_n = |n|/R_y."""
-    modes = np.asarray(modes, dtype=float)
-    return np.abs(modes) / radius_y
+    return HolomorphicFormulas.kk_mode_masses(radius_y, modes)
 
 
 def poincare_constant(radius_y: float) -> float:
     """Return the Poincare constant L^2/(4pi^2) for S^1 of radius R_y."""
-    length = 2.0 * np.pi * radius_y
-    return (length**2) / (4.0 * np.pi**2)
+    return HolomorphicFormulas.poincare_constant(radius_y)
 
 
 def poincare_lower_bound(radius_y: float) -> float:
     """Return the spectral lower bound 4pi^2/L^2 = 1/R_y^2."""
-    length = 2.0 * np.pi * radius_y
-    return (4.0 * np.pi**2) / (length**2)
+    return HolomorphicFormulas.poincare_lower_bound(radius_y)
 
 
 def zero_mode_removed(field: np.ndarray, axis: int = -1) -> np.ndarray:
