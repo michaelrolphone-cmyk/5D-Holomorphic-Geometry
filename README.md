@@ -5,9 +5,9 @@ This repository provides a NumPy-based library to model and simulate a discrete 
 
 ## White paper overview
 
-This library is a computational companion to a set of white papers that propose a 5D holomorphic modular manifold as a unifying
-framework for electromagnetism, gravitation, and arithmetic spectral phenomena. In that narrative, a compactified fifth dimension
-with modular symmetry supports:
+This library is a computational companion to a white paper (see [`WHITE_PAPER.md`](WHITE_PAPER.md)) that proposes a 5D holomorphic
+modular manifold as a unifying framework for electromagnetism, gravitation, and arithmetic spectral phenomena. In that narrative,
+a compactified fifth dimension with modular symmetry supports:
 
 - A capacitance-based dictionary that ties rest energy, force scales, and cosmic/proton radii through impedance-matched boundaries.
 - A spectral operator on the modular surface whose eigenvalues are linked to zeta-function structure via theta/Mellin machinery.
@@ -99,6 +99,7 @@ python -m pip install -e .
 - `simulate_electron_binding(constants: PhysicalConstants) -> dict[str, float]`.
 
 ### `holomorphic5d.simulation` helpers
+- `ImpedanceBoundary(factor: float)`: attenuation model for boundary slices.
 - `apply_impedance_boundary(field: np.ndarray, impedance: ImpedanceBoundary) -> np.ndarray`.
 - `modular_transform(tau: np.ndarray, matrix: np.ndarray) -> np.ndarray`.
 - `sample_modular_orbit(tau: complex, steps: int) -> np.ndarray`.
@@ -107,7 +108,19 @@ python -m pip install -e .
 
 ## CLI
 
-Use the module as a CLI entry-point:
+Use the module as a CLI entry-point. Commands and options reflect the callable helpers:
+
+| Command | Purpose | Required args | Key options |
+| --- | --- | --- | --- |
+| `sample-orbit` | Sample a modular orbit using S/T generators. | `tau_real tau_imag steps` | None |
+| `simulate-diffusion` | Run 5D diffusion with optional impedance. | `nx ny nz ny_fiber dt steps` | `--diffusivity`, `--radius-y`, `--impedance` |
+| `theta` | Compute theta(t). | `t` | `--terms` |
+| `mellin-zeta` | Approximate Mellin-zeta integral. | `s t-min t-max` | `--steps`, `--terms` |
+| `simulate-physics` | Compute unification constants. | None | `--electron-radius`, `--proton-radius`, `--universe-radius`, `--electron-mass`, `--charge`, `--epsilon0`, `--c`, `--g`, `--hbar`, `--k-b` |
+| `mass-gap` | Compute Yang-Mills gap bound. | `radius_y` | `--coupling`, `--mev` |
+| `fundamental-geometry` | Report invariants and optional tau projection. | `radius_y` | `--coupling`, `--tau-real`, `--tau-imag` |
+
+Examples:
 
 ```bash
 python -m holomorphic5d.cli sample-orbit 0.2 1.1 6
@@ -118,15 +131,15 @@ python -m holomorphic5d.cli simulate-diffusion 8 8 8 16 0.01 5 --diffusivity 0.5
 ```
 
 ```bash
+python -m holomorphic5d.cli simulate-physics
+```
+
+```bash
 python -m holomorphic5d.cli theta 1.0 --terms 80
 ```
 
 ```bash
 python -m holomorphic5d.cli mellin-zeta 2.0 0.1 5.0 --steps 2000 --terms 80
-```
-
-```bash
-python -m holomorphic5d.cli simulate-physics
 ```
 
 ```bash
