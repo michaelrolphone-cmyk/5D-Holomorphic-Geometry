@@ -7,6 +7,7 @@ import numpy as np
 
 from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D
+from .imaging import decode_pixels_to_manifold
 from .mass_gap import mass_gap_from_geometry, mass_gap_mev
 from .simulation import ImpedanceBoundary, sample_modular_orbit, simulate_diffusion
 from .spectral import mellin_zeta, theta_function
@@ -85,6 +86,22 @@ def build_parser() -> argparse.ArgumentParser:
     fundamental_parser.add_argument("--coupling", type=float, default=1.0)
     fundamental_parser.add_argument("--tau-real", type=float, default=None)
     fundamental_parser.add_argument("--tau-imag", type=float, default=None)
+
+    pixel_parser = subparsers.add_parser(
+        "decode-pixels", help="Decode RGB pixels into 5D manifold embeddings"
+    )
+    pixel_parser.add_argument("input", type=str, help="Input .npy array (H, W, 3)")
+    pixel_parser.add_argument(
+        "output", type=str, help="Output .npz file for points, tau, and fields"
+    )
+    pixel_parser.add_argument("--radius-y", type=float, default=1.0)
+    pixel_parser.add_argument("--depth-scale", type=float, default=1.0)
+    pixel_parser.add_argument("--spectral-scale", type=float, default=1.0)
+    pixel_parser.add_argument("--phase-scale", type=float, default=1.0)
+    pixel_parser.add_argument("--temporal-scale", type=float, default=1.0)
+    pixel_parser.add_argument("--spacing-x", type=float, default=1.0)
+    pixel_parser.add_argument("--spacing-y", type=float, default=1.0)
+    pixel_parser.add_argument("--spacing-z", type=float, default=1.0)
 
     return parser
 
@@ -173,6 +190,36 @@ def main() -> None:
                 "imag": float(np.imag(projected)),
             }
         print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    if args.command == "decode-pixels":
+        image = np.load(args.input)
+        embedding = decode_pixels_to_manifold(
+            image,
+            spacing=(args.spacing_x, args.spacing_y, args.spacing_z),
+            radius_y=args.radius_y,
+            depth_scale=args.depth_scale,
+            spectral_scale=args.spectral_scale,
+            phase_scale=args.phase_scale,
+            temporal_scale=args.temporal_scale,
+        )
+        np.savez(
+            args.output,
+            points=embedding.points,
+            tau=embedding.tau,
+            depth_field=embedding.depth_field,
+            spectral_shift=embedding.spectral_shift,
+            phase_field=embedding.phase_field,
+            temporal_field=embedding.temporal_field,
+        )
+        print(
+            json.dumps(
+                {
+                    "points_shape": embedding.points.shape,
+                    "tau_shape": embedding.tau.shape,
+                }
+            )
+        )
         return
 
 

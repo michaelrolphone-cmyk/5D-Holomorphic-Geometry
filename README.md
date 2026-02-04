@@ -47,6 +47,10 @@ python -m pip install -e .
 - `laplacian5(field: np.ndarray) -> np.ndarray`: compute the 5D Laplacian with periodicity along the fiber.
 - `from_fundamental_geometry(geometry, grid_shape, spacing_base) -> HolomorphicManifold5D`: construct from the fundamental geometry.
 
+### `holomorphic5d.imaging` helpers
+- `PixelManifoldEmbedding`: container for pixel-derived 5D embeddings.
+- `decode_pixels_to_manifold(image, spacing=(1.0, 1.0, 1.0), radius_y=1.0, depth_scale=1.0, spectral_scale=1.0, phase_scale=1.0, temporal_scale=1.0, eps=1e-8, project_tau=True) -> PixelManifoldEmbedding`.
+
 ### `holomorphic5d.FundamentalGeometry5D`
 - `fiber_circumference() -> float`: return the S^1_y circumference.
 - `normalize_fiber_coordinate(y: np.ndarray) -> np.ndarray`: normalize fiber coordinates into `[0, 2πR)`.
@@ -119,6 +123,7 @@ Use the module as a CLI entry-point. Commands and options reflect the callable h
 | `simulate-physics` | Compute unification constants. | None | `--electron-radius`, `--proton-radius`, `--universe-radius`, `--electron-mass`, `--charge`, `--epsilon0`, `--c`, `--g`, `--hbar`, `--k-b` |
 | `mass-gap` | Compute Yang-Mills gap bound. | `radius_y` | `--coupling`, `--mev` |
 | `fundamental-geometry` | Report invariants and optional tau projection. | `radius_y` | `--coupling`, `--tau-real`, `--tau-imag` |
+| `decode-pixels` | Decode RGB pixels into a 5D embedding and tau field. | `input output` | `--radius-y`, `--depth-scale`, `--spectral-scale`, `--phase-scale`, `--temporal-scale`, `--spacing-x`, `--spacing-y`, `--spacing-z` |
 
 Examples:
 
@@ -148,6 +153,10 @@ python -m holomorphic5d.cli mass-gap 2.818e-15 --mev
 
 ```bash
 python -m holomorphic5d.cli fundamental-geometry 2.0 --coupling 1.25 --tau-real 0.2 --tau-imag 1.1
+```
+
+```bash
+python -m holomorphic5d.cli decode-pixels image.npy embedding.npz --radius-y 1.5 --depth-scale 0.8 --spectral-scale 1.2
 ```
 
 The diffusion command prints the mean of the final field state.

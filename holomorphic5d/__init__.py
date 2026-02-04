@@ -3,6 +3,7 @@
 from .formulas import HolomorphicFormulas
 from .fundamental import FundamentalGeometry5D
 from .manifold import HolomorphicManifold5D, ModularSurface
+from .imaging import PixelManifoldEmbedding, decode_pixels_to_manifold
 from .mass_gap import (
     FiberGeometry,
     check_zero_mode,
@@ -65,6 +66,7 @@ __all__ = [
     "ModularHilbertSpace",
     "hilbert_space_from_geometry",
     "ModularSurface",
+    "PixelManifoldEmbedding",
     "PhysicalConstants",
     "apply_impedance_boundary",
     "bridge_capacitance",
@@ -88,6 +90,7 @@ __all__ = [
     "mellin_zeta",
     "modular_operator_h",
     "modular_transform",
+    "decode_pixels_to_manifold",
     "physics_kk_mode_masses",
     "poincare_constant",
     "poincare_lower_bound",
