@@ -10,7 +10,7 @@ from .manifold import HolomorphicManifold5D
 from .imaging import decode_pixels_to_manifold
 from .mass_gap import mass_gap_from_geometry, mass_gap_mev
 from .simulation import ImpedanceBoundary, sample_modular_orbit, simulate_diffusion
-from .spectral import mellin_zeta, theta_function
+from .spectral import holomorphic_spectrum_fourier, mellin_zeta, theta_function
 from .unification import PhysicalConstants, simulate_electron_binding
 
 
@@ -102,6 +102,19 @@ def build_parser() -> argparse.ArgumentParser:
     pixel_parser.add_argument("--spacing-x", type=float, default=1.0)
     pixel_parser.add_argument("--spacing-y", type=float, default=1.0)
     pixel_parser.add_argument("--spacing-z", type=float, default=1.0)
+
+    spectrum_parser = subparsers.add_parser(
+        "spectrum-fourier", help="Evaluate the 5D holomorphic Fourier spectrum"
+    )
+    spectrum_parser.add_argument("k0", type=float)
+    spectrum_parser.add_argument("k1", type=float)
+    spectrum_parser.add_argument("k2", type=float)
+    spectrum_parser.add_argument("k3", type=float)
+    spectrum_parser.add_argument("k4", type=float)
+    spectrum_parser.add_argument("--sigma", type=float, default=0.6)
+    spectrum_parser.add_argument("--coupling", type=float, default=1.0)
+    spectrum_parser.add_argument("--twist", type=float, default=0.35)
+    spectrum_parser.add_argument("--center", type=float, nargs=5, default=None)
 
     return parser
 
@@ -220,6 +233,31 @@ def main() -> None:
                 }
             )
         )
+        return
+
+    if args.command == "spectrum-fourier":
+        center = np.array(args.center, dtype=float) if args.center is not None else None
+        k_vector = np.array([args.k0, args.k1, args.k2, args.k3, args.k4], dtype=float)
+        value = holomorphic_spectrum_fourier(
+            k_vector,
+            sigma=args.sigma,
+            center=center,
+            coupling=args.coupling,
+            twist=args.twist,
+        )
+        payload = {
+            "k": k_vector.tolist(),
+            "sigma": args.sigma,
+            "coupling": args.coupling,
+            "twist": args.twist,
+            "real": float(np.real(value)),
+            "imag": float(np.imag(value)),
+            "amplitude": float(np.abs(value)),
+            "phase": float(np.angle(value)),
+        }
+        if center is not None:
+            payload["center"] = center.tolist()
+        print(json.dumps(payload, indent=2, sort_keys=True))
         return
 
 

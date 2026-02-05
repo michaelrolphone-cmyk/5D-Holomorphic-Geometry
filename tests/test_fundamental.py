@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from holomorphic5d.cli import main
 from holomorphic5d.fundamental import FundamentalGeometry5D
@@ -47,6 +48,28 @@ def test_cli_fundamental_geometry(capsys, monkeypatch):
     payload = json.loads(captured)
     assert payload["radius_y"] == 2.0
     assert np.isclose(payload["mass_gap_bound"], mass_gap_bound(2.0, coupling_scale=1.25))
+
+
+def test_cli_spectrum_fourier(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "holomorphic5d.cli",
+            "spectrum-fourier",
+            "0.0",
+            "0.0",
+            "0.0",
+            "0.0",
+            "0.0",
+            "--sigma",
+            "0.5",
+        ],
+    )
+    main()
+    captured = capsys.readouterr().out
+    payload = json.loads(captured)
+    assert payload["amplitude"] == pytest.approx(1.0)
+    assert payload["phase"] == pytest.approx(0.0)
 
 
 def test_fundamental_geometry_math_bridges():

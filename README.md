@@ -87,6 +87,8 @@ python -m pip install -e .
 - `theta_functional_equation(t: np.ndarray, n_terms: int = 50) -> np.ndarray`.
 - `mellin_zeta(s: complex, t: np.ndarray, n_terms: int = 50) -> complex`.
 - `zeta_regularized_determinant(eigenvalues: np.ndarray) -> complex`.
+- `holomorphic_spectrum_fourier(k_coords, sigma=0.6, center=None, coupling=1.0, twist=0.35) -> np.ndarray`.
+- `discrete_five_d_fourier(points, weights, k_coords) -> np.ndarray`.
 
 ### `holomorphic5d.unification` helpers
 - `PhysicalConstants`: container for the physical constants and scale parameters.
@@ -124,6 +126,7 @@ Use the module as a CLI entry-point. Commands and options reflect the callable h
 | `mass-gap` | Compute Yang-Mills gap bound. | `radius_y` | `--coupling`, `--mev` |
 | `fundamental-geometry` | Report invariants and optional tau projection. | `radius_y` | `--coupling`, `--tau-real`, `--tau-imag` |
 | `decode-pixels` | Decode RGB pixels into a 5D embedding and tau field. | `input output` | `--radius-y`, `--depth-scale`, `--spectral-scale`, `--phase-scale`, `--temporal-scale`, `--spacing-x`, `--spacing-y`, `--spacing-z` |
+| `spectrum-fourier` | Evaluate the 5D holomorphic Fourier spectrum at a single frequency coordinate. | `k0 k1 k2 k3 k4` | `--sigma`, `--coupling`, `--twist`, `--center` |
 
 Examples:
 
@@ -159,9 +162,15 @@ python -m holomorphic5d.cli fundamental-geometry 2.0 --coupling 1.25 --tau-real 
 python -m holomorphic5d.cli decode-pixels image.npy embedding.npz --radius-y 1.5 --depth-scale 0.8 --spectral-scale 1.2
 ```
 
+```bash
+python -m holomorphic5d.cli spectrum-fourier 0.2 -0.4 0.1 0.0 0.6 --sigma 0.7 --coupling 1.1 --twist 0.25
+```
+
 The diffusion command prints the mean of the final field state.
 
 ## Standalone WebGL temporal-field viewer
 
-Open [`temporal_field_viewer.html`](temporal_field_viewer.html) in a browser to upload an image and render the temporal-field
-magnitude (brightness) and phase (hue) using the same luminance/gradient/Laplacian math as `decode_pixels_to_manifold`.
+Open [`temporal_field_viewer.html`](temporal_field_viewer.html) in a browser to switch between a 5D holomorphic Fourier spectrum
+render and the temporal-field viewer. The spectrum mode renders a 5D Fourier transform of the uploaded image (phase as hue,
+amplitude as brightness), while the temporal-field mode mirrors the luminance/gradient/Laplacian math in
+`decode_pixels_to_manifold`.
